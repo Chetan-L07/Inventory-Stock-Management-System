@@ -1,1 +1,11 @@
-flask
+Flask 
+flask-restx
+flask-sqlalchemy
+werkzeug
+python-dotenv
+mysqlclient
+streamlit
+reportlab
+Flask-Mail
+pandas
+matplotlib
