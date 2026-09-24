@@ -6,6 +6,8 @@ from database import db
 
 # Routes
 from Routes.auth_routes import auth_routes
+from Routes.product_routes import product_routes
+from Routes.category_routes import category_routes
 
 from models import User
 from models import Category
@@ -23,12 +25,15 @@ with app.app_context():
 
 api = Api(
     app,
-    title="inventory management API",
-    description="a simple inventory management system",
+    title="Inventory Management API",
+    version="1.0",
+    description="A simple inventory management system",
     doc="/swagger",
     prefix="/api/v1",
 )
-api.add_namespace(auth_routes)
+api.add_namespace(auth_routes, path="/auth")
+api.add_namespace(product_routes, path="/products")
+api.add_namespace(category_routes, path="/categories")
 
 @app.route("/")
 def home():
