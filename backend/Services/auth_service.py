@@ -4,9 +4,9 @@ from models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import session
 
-def rigester(data):
+def register(data):
     try:
-        user = User.query.filter_by(name=data["name"]).first()
+        user = User.query.filter_by(user_name=data["user_name"]).first()
         
         if user:
             return error_response(
@@ -24,7 +24,7 @@ def rigester(data):
             )
             
         user = User(
-            name = data["name"],
+            user_name = data["user_name"],
             email = data["email"],
             role = data["role"],
             password = generate_password_hash(data["password"])
@@ -36,7 +36,7 @@ def rigester(data):
         return success_response(
             message="New user added",
             data={
-                "name": data["name"],
+                "name": data["user_name"],
                 "email": data["email"],
                 "role": data["role"]
             }
@@ -67,7 +67,7 @@ def login(data):
             # session["role"] = user.role
             result = {
                 "id": user.id,
-                "name": user.name,
+                "name": user.user_name,
                 "email": user.email,
                 "role": user.role
             }
