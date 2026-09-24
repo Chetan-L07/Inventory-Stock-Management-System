@@ -4,6 +4,9 @@ from flask_restx import Api
 from config import config
 from database import db
 
+# Routes
+from Routes.auth_routes import auth_routes
+
 from models import User
 from models import Category
 from models import Product
@@ -25,7 +28,7 @@ api = Api(
     doc="/swagger",
     prefix="/api/v1",
 )
-
+api.add_namespace(auth_routes)
 
 @app.route("/")
 def home():
