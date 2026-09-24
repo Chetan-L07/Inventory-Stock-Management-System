@@ -1,107 +1,136 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from Services.auth_service import register, login
 from Utils.Response import success_response, error_response
 from database import db
 from models import User
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import session
 
- 
-auth_routes = Namespace("auth", description="authentication API")
-user_model = auth_routes.model("User", {
-                                        "user_name":fields.String(required=True), 
-                                        "email":fields.String(required=True), 
-                                        "password":fields.String(required=True),
-                                        "role":fields.String(required=True)
-                                        }
-                               )
-@auth_routes.route("/register", methods=["POST"])
+auth_routes = Namespace("auth", description="Authentication API")
+
+user_register_model = auth_routes.model(
+    "UserRegister",
+    {
+        "user_name": fields.String(required=True, description="Unique username"),
+        "email": fields.String(required=True, description="User email address"),
+        "password": fields.String(required=True, description="Account password"),
+        "role": fields.String(required=False, default="user", description="admin, user, manager, nagu_bhai"),
+    },
+)
+
+user_login_model = auth_routes.model(
+    "UserLogin",
+    {
+        "email": fields.String(required=True, description="Registered email address"),
+        "password": fields.String(required=True, description="Account password"),
+    },
+)
+
+
+def serialize_user(user):
+    """Helper to convert User model into JSON-ready dict"""
+    return {
+        "id": user.id,
+        "name": user.user_name,
+        "email": user.email,
+        "role": user.role,
+        "sign_up_time": str(user.sign_up_time) if hasattr(user, "sign_up_time") else None,
+    }
+
+
+@auth_routes.route("/register")
 class Register(Resource):
-    @auth_routes.expect(user_model)
-    def register():
+
+    # 1. USER REGISTRATION
+    @auth_routes.expect(user_register_model)
+    def post(self):
         try:
             data = request.get_json()
-            user = User.query.filter_by(user_name=data["user_name"]).first()
-            
-            if user:
+
+            user_name = data.get("user_name", "").strip()
+            email = data.get("email", "").strip()
+            password = data.get("password")
+            role = data.get("role", "user").strip().lower()
+
+            if not user_name or not email or not password:
                 return error_response(
-                    message="User already exist",
-                    status_code=409
+                    message="Username, email, and password are required",
+                    status_code=400,
                 )
-            
-            role = data.get("role", "user").lower()
+
+            existing_user = User.query.filter_by(user_name=user_name).first()
+            if existing_user:
+                return error_response(
+                    message="Username already exists",
+                    status_code=409,
+                )
+
+            existing_email = User.query.filter_by(email=email).first()
+            if existing_email:
+                return error_response(
+                    message="Email already registered",
+                    status_code=409,
+                )
+
             valid_roles = ["admin", "user", "manager", "nagu_bhai"]
-            
             if role not in valid_roles:
                 return error_response(
-                    message="Role is not valid",
-                    status_code=400
+                    message=f"Role is not valid. Choose from: {', '.join(valid_roles)}",
+                    status_code=400,
                 )
-                
-            user = User(
-                user_name = data["user_name"],
-                email = data["email"],
-                role = data["role"],
-                password = generate_password_hash(data["password"])
+
+            new_user = User(
+                user_name=user_name,
+                email=email,
+                role=role,
+                password=generate_password_hash(password),
             )
-            
-            db.session.add(user)
+
+            db.session.add(new_user)
             db.session.commit()
-            
+
             return success_response(
-                message="New user added",
-                data={
-                    "name": data["user_name"],
-                    "email": data["email"],
-                    "role": data["role"]
-                }
+                message="User registered successfully",
+                data=serialize_user(new_user),
             )
         except Exception as e:
+            db.session.rollback()
             return error_response(str(e))
 
-    
-login_model = auth_routes.model("Login", {
-                                        "email":fields.String(required=True),
-                                        "password":fields.String(required=True)
-                                        })
-@auth_routes.route("/login", methods=["POST"])    
+
+@auth_routes.route("/login")
 class Login(Resource):
-    @auth_routes.expect(login_model)
-    def login(data):
+
+    # 2. USER LOGIN
+    @auth_routes.expect(user_login_model)
+    def post(self):
         try:
             data = request.get_json()
-            user_email = data["email"]
-            
-            if not user_email:
+
+            user_email = data.get("email", "").strip()
+            password = data.get("password")
+
+            if not user_email or not password:
                 return error_response(
-                    message="Enter user email and password",
-                    status_code=403
+                    message="Email and password are required",
+                    status_code=400,
                 )
-                
+
             user = User.query.filter_by(email=user_email).first()
-            
             if not user:
                 return error_response(
-                    message="User not exist, rigester first",
-                    status_code=404
+                    message="User does not exist, register first",
+                    status_code=404,
                 )
-            
-            if user and check_password_hash(user.password, data["password"]):
-                # session["id"] = user.id
-                # session["role"] = user.role
-                result = {
-                    "id": user.id,
-                    "name": user.user_name,
-                    "email": user.email,
-                    "role": user.role
-                }
+
+            if check_password_hash(user.password, password):
                 return success_response(
-                    message="Login successfull",
-                    data=result
+                    message="Login successful",
+                    data=serialize_user(user),
                 )
-            return error_response("Invalid username or password")
-            
+
+            return error_response(
+                message="Invalid email or password",
+                status_code=401,
+            )
         except Exception as e:
             return error_response(str(e))
-    
