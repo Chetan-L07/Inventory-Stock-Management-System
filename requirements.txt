@@ -1,11 +1,14 @@
-Flask 
+Flask
 flask-restx
 flask-sqlalchemy
 werkzeug
 python-dotenv
+pymysql
 mysqlclient
 streamlit
 reportlab
 Flask-Mail
 pandas
 matplotlib
+gunicorn
+requests
