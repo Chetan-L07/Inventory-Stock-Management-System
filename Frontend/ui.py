@@ -28,7 +28,7 @@ html, body, [class*="css"] {
 /* Background gradient */
 .stApp {
     background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0f172a 100%);
-    color: #f8fafc;
+    color: #ffffff;
 }
 
 /* Sidebar styling */
@@ -52,7 +52,7 @@ html, body, [class*="css"] {
 
 .metric-box:hover {
     transform: translateY(-3px);
-    border-color: #6366f1;
+    border-color: #ffffff;
 }
 
 .metric-icon {
@@ -217,7 +217,7 @@ with st.sidebar:
             </div>
             <div>
                 <h3 style="margin:0; font-size: 1.15rem; font-weight: 800; color: #ffffff;">Nagu Stock</h3>
-                <span style="font-size: 0.75rem; color: #818cf8; font-weight: 600;">Inventory Pro v1.0</span>
+                <span style="font-size: 0.75rem; color: #ffffff; font-weight: 600;">Inventory Pro v1.0</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -225,10 +225,11 @@ with st.sidebar:
     # Backend Status Indicator
     is_online = api_health_check()
     if is_online:
-        st.markdown('<span class="badge badge-success">● API Online (Port 5001)</span>', unsafe_allow_html=True)
+        st.markdown('<span class="badge badge-success">● API Connected</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="badge badge-danger">● API Offline</span>', unsafe_allow_html=True)
-        st.caption("⚠️ Run `python backend/app.py` to start server.")
+        st.markdown('<span class="badge badge-danger">● API Connecting / Offline</span>', unsafe_allow_html=True)
+        st.caption(f"Target: `{BASE_URL}`")
+        st.caption("*(If on free hosting like Render, the backend may take 30-50s to wake up from idle)*")
         if st.button("🔄 Retry Connection", key="btn_retry_conn"):
             st.rerun()
 
@@ -239,9 +240,9 @@ with st.sidebar:
         user = st.session_state["user"]
         st.markdown(f"""
             <div class="user-profile-card">
-                <div style="font-size: 0.75rem; text-transform: uppercase; color: #a5b4fc; font-weight: 700;">Active Account</div>
-                <div style="font-size: 1.05rem; font-weight: 700; color: white; margin-top: 2px;">{user.get('name', 'User')}</div>
-                <div style="font-size: 0.8rem; color: #94a3b8;">{user.get('email', '')}</div>
+                <div style="font-size: 0.75rem; text-transform: uppercase; color: #ffffff; font-weight: 700;">Active Account</div>
+                <div style="font-size: 1.05rem; font-weight: 700; color: #ffffff; margin-top: 2px;">{user.get('name', 'User')}</div>
+                <div style="font-size: 0.8rem; color:#ffffff;">{user.get('email', '')}</div>
                 <div style="margin-top: 8px;">
                     <span class="badge badge-info">{user.get('role', 'user').upper()}</span>
                 </div>
@@ -261,7 +262,7 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
     # Navigation Menu
-    st.markdown("<div style='font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;'>Navigation</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 0.75rem; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;'>Navigation</div>", unsafe_allow_html=True)
     
     menu_choice = st.radio(
         "Menu",

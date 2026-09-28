@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: inventory-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir backend app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: SECRET_KEY
+        generateValue: true
+
+  - type: web
+    name: inventory-frontend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run Frontend/ui.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: FLASK_API_URL
+        fromService:
+          type: web
+          name: inventory-backend
+          property: host
+          path: /api/v1
