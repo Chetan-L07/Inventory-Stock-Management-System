@@ -16,10 +16,12 @@ from database import db
 from Routes.auth_routes import auth_routes
 from Routes.product_routes import product_routes
 from Routes.category_routes import category_routes
+from Routes.client_routes import client_routes
 
 from models import User
 from models import Category
 from models import Product
+from models import Client
 
 app = Flask(__name__)
 CORS(app)
@@ -42,6 +44,7 @@ api = Api(
 api.add_namespace(auth_routes, path="/auth")
 api.add_namespace(product_routes, path="/products")
 api.add_namespace(category_routes, path="/categories")
+api.add_namespace(client_routes, path="/client")
 
 @app.route("/")
 def home():
@@ -54,4 +57,4 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
