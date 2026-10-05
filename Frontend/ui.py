@@ -99,6 +99,7 @@ html, body, [class*="css"] {
 .badge-warning { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
 .badge-danger { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
 .badge-info { background: rgba(99, 102, 241, 0.18); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+.badge-neutral { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
 
 /* Custom Section Card */
 .content-card {
@@ -108,6 +109,39 @@ html, body, [class*="css"] {
     padding: 24px;
     margin-bottom: 24px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Client Avatar & Card Styling */
+.client-avatar {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.15rem;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.client-card {
+    background: rgba(30, 41, 59, 0.45);
+    backdrop-filter: blur(10px);
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease-in-out;
+}
+
+.client-card:hover {
+    border-color: rgba(99, 102, 241, 0.45);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* User Card Sidebar */
@@ -270,6 +304,7 @@ with st.sidebar:
             "📊 Dashboard",
             "📦 Product Inventory",
             "📁 Categories",
+            "👥 Client Management",
             "⚠️ Stock Alerts",
             "📈 Financial Analytics",
             "🔐 Authentication",
@@ -356,7 +391,7 @@ if menu_choice == "🔐 Authentication":
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="background: rgba(168,85,247,0.2); color: #c084fc; padding: 6px; border-radius: 8px;">✓</span>
-                        <span>One-click CSV & PDF Export Reports</span>
+                        <span>Manage Clients, Corporate Billing & GST</span>
                     </div>
                 </div>
             </div>
@@ -368,14 +403,16 @@ if menu_choice == "🔐 Authentication":
 # ---------------------------------------------------------
 elif menu_choice == "📊 Dashboard":
     st.title("📊 Executive Dashboard")
-    st.caption("Live overview of stock metrics, category distribution, and low inventory warnings.")
+    st.caption("Live overview of stock metrics, category distribution, clients, and inventory warnings.")
 
     # Fetch data
     products_res = api_get("/products")
     categories_res = api_get("/categories")
+    clients_res = api_get("/client/read_client")
 
     products = products_res.get("data", []) if isinstance(products_res, dict) and products_res.get("status") == "Success" else []
     categories = categories_res.get("data", []) if isinstance(categories_res, dict) and categories_res.get("status") == "Success" else []
+    clients = clients_res.get("data", []) if isinstance(clients_res, dict) and clients_res.get("status") == "Success" else []
 
     if not is_online:
         st.warning("⚠️ Backend API server is offline. Showing empty/cached dashboard state.")
@@ -383,6 +420,8 @@ elif menu_choice == "📊 Dashboard":
     # Calculate metrics
     total_products = len(products)
     total_categories = len(categories)
+    total_clients = len(clients)
+    active_clients = len([c for c in clients if (c.get("status") or "").lower() == "active"])
     
     total_cost_val = sum([p.get("cost_price", 0) * p.get("stock_quantity", 0) for p in products])
     total_retail_val = sum([p.get("selling_price", 0) * p.get("stock_quantity", 0) for p in products])
@@ -399,7 +438,7 @@ elif menu_choice == "📊 Dashboard":
                 <div class="metric-icon">📦</div>
                 <div class="metric-title">Total Products</div>
                 <div class="metric-value">{total_products}</div>
-                <div class="metric-subtitle text-indigo">{total_categories} Active Categories</div>
+                <div class="metric-subtitle text-indigo">{total_categories} Categories • {total_clients} Clients</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -408,8 +447,8 @@ elif menu_choice == "📊 Dashboard":
             <div class="metric-box">
                 <div class="metric-icon">💵</div>
                 <div class="metric-title">Inventory Valuation</div>
-                <div class="metric-value">${total_cost_val:,.2f}</div>
-                <div class="metric-subtitle text-emerald">Retail Value: ${total_retail_val:,.2f}</div>
+                <div class="metric-value">₹{total_cost_val:,.2f}</div>
+                <div class="metric-subtitle text-emerald">Retail Value: ₹{total_retail_val:,.2f}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -430,7 +469,7 @@ elif menu_choice == "📊 Dashboard":
             <div class="metric-box">
                 <div class="metric-icon">📈</div>
                 <div class="metric-title">Potential Profit</div>
-                <div class="metric-value">${potential_profit:,.2f}</div>
+                <div class="metric-value">₹{potential_profit:,.2f}</div>
                 <div class="metric-subtitle text-emerald">Avg Margin: {margin_pct:.1f}%</div>
             </div>
         """, unsafe_allow_html=True)
@@ -472,17 +511,43 @@ elif menu_choice == "📊 Dashboard":
 
     st.markdown("<hr style='border-color: #1e293b; margin: 30px 0;'>", unsafe_allow_html=True)
 
-    # Categories Summary Table
-    st.markdown("<h3 style='font-size: 1.1rem; font-weight: 700;'>📁 Category Distribution</h3>", unsafe_allow_html=True)
-    if categories:
-        df_cat = pd.DataFrame(categories)
-        st.dataframe(
-            df_cat[["id", "name", "total_products", "created_at"]],
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.info("No categories registered in the database.")
+    # Categories and Clients Summary Section (2-Columns)
+    row_cat_col, row_client_col = st.columns([1.2, 1.2])
+
+    with row_cat_col:
+        st.markdown("<h3 style='font-size: 1.1rem; font-weight: 700;'>📁 Category Distribution</h3>", unsafe_allow_html=True)
+        if categories:
+            df_cat = pd.DataFrame(categories)
+            st.dataframe(
+                df_cat[["id", "name", "total_products", "created_at"]],
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("No categories registered in the database.")
+
+    with row_client_col:
+        st.markdown("<h3 style='font-size: 1.1rem; font-weight: 700;'>👥 Recent Client Overview</h3>", unsafe_allow_html=True)
+        if clients:
+            for cl in clients[:4]:
+                cl_status = (cl.get("status") or "active").lower()
+                status_b = '<span class="badge badge-success">ACTIVE</span>' if cl_status == "active" else '<span class="badge badge-danger">INACTIVE</span>'
+                comp_tag = f" • <b>{cl['company_name']}</b>" if cl.get("company_name") else ""
+                st.markdown(f"""
+                    <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid #1e293b; border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: #ffffff;">{cl['name']}{comp_tag}</div>
+                            <div style="font-size: 0.78rem; color: #94a3b8;">📞 {cl.get('phone', 'N/A')} &nbsp;|&nbsp; 📍 {cl.get('city') or 'Unknown City'}</div>
+                        </div>
+                        <div>
+                            {status_b}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            if len(clients) > 4:
+                st.caption(f"*Showing 4 of {len(clients)} registered clients. Go to '👥 Client Management' for full details.*")
+        else:
+            st.info("No clients registered yet. Add clients in '👥 Client Management'.")
 
 
 # ---------------------------------------------------------
@@ -513,8 +578,8 @@ elif menu_choice == "📦 Product Inventory":
                 selected_cat = st.selectbox("Category", list(cat_mapping.keys()) if cat_mapping else ["Unassigned"])
                 prod_unit = st.text_input("Unit", value="pcs")
             with col_c:
-                cost_p = st.number_input("Cost Price ($) *", min_value=0.0, step=0.5, value=10.0)
-                sell_p = st.number_input("Selling Price ($) *", min_value=0.0, step=0.5, value=15.0)
+                cost_p = st.number_input("Cost Price (₹) *", min_value=0.0, step=0.5, value=10.0)
+                sell_p = st.number_input("Selling Price (₹) *", min_value=0.0, step=0.5, value=15.0)
 
             col_d, col_e = st.columns(2)
             with col_d:
@@ -606,8 +671,8 @@ elif menu_choice == "📦 Product Inventory":
                                 </div>
                             </div>
                             <div style="text-align: right;">
-                                <div style="font-size: 1.15rem; font-weight: 800; color: #34d399;">${prod['selling_price']:.2f} <span style="font-size: 0.75rem; color: #94a3b8;">/{prod['unit']}</span></div>
-                                <div style="font-size: 0.78rem; color: #94a3b8;">Cost: ${prod['cost_price']:.2f} (Profit: +${margin_val:.2f} | {margin_pct:.0f}%)</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: #34d399;">₹{prod['selling_price']:.2f} <span style="font-size: 0.75rem; color: #94a3b8;">/{prod['unit']}</span></div>
+                                <div style="font-size: 0.78rem; color: #94a3b8;">Cost: ₹{prod['cost_price']:.2f} (Profit: +₹{margin_val:.2f} | {margin_pct:.0f}%)</div>
                             </div>
                         </div>
                     </div>
@@ -629,8 +694,8 @@ elif menu_choice == "📦 Product Inventory":
                     with st.popover("✏️ Edit Details"):
                         st.markdown(f"**Edit {prod['name']}**")
                         edit_name = st.text_input("Name", value=prod['name'], key=f"ename_{prod['id']}")
-                        edit_cost = st.number_input("Cost ($)", value=float(prod['cost_price']), key=f"ecost_{prod['id']}")
-                        edit_sell = st.number_input("Selling ($)", value=float(prod['selling_price']), key=f"esell_{prod['id']}")
+                        edit_cost = st.number_input("Cost (₹)", value=float(prod['cost_price']), key=f"ecost_{prod['id']}")
+                        edit_sell = st.number_input("Selling (₹)", value=float(prod['selling_price']), key=f"esell_{prod['id']}")
                         edit_qty = st.number_input("Stock Qty", value=int(prod['stock_quantity']), key=f"eqty_{prod['id']}")
                         edit_min = st.number_input("Min Level", value=int(prod['min_stock_level']), key=f"emin_{prod['id']}")
                         
@@ -787,11 +852,11 @@ elif menu_choice == "📈 Financial Analytics":
 
         r1, r2, r3 = st.columns(3)
         with r1:
-            st.metric("Total Asset Cost Value", f"${df['total_cost_value'].sum():,.2f}")
+            st.metric("Total Asset Cost Value", f"₹{df['total_cost_value'].sum():,.2f}")
         with r2:
-            st.metric("Total Projected Revenue", f"${df['total_retail_value'].sum():,.2f}")
+            st.metric("Total Projected Revenue", f"₹{df['total_retail_value'].sum():,.2f}")
         with r3:
-            st.metric("Total Potential Net Profit", f"${df['potential_profit'].sum():,.2f}")
+            st.metric("Total Potential Net Profit", f"₹{df['potential_profit'].sum():,.2f}")
 
         st.markdown("<hr style='border-color: #1e293b; margin: 20px 0;'>", unsafe_allow_html=True)
         st.markdown("### 📄 Export Reports")
@@ -816,14 +881,14 @@ elif menu_choice == "📈 Financial Analytics":
 Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 --------------------------------------------------
 Total Unique Products: {len(df)}
-Total Stock Valuation (Cost): ${df['total_cost_value'].sum():,.2f}
-Total Potential Revenue: ${df['total_retail_value'].sum():,.2f}
-Estimated Net Profit: ${df['potential_profit'].sum():,.2f}
+Total Stock Valuation (Cost): ₹{df['total_cost_value'].sum():,.2f}
+Total Potential Revenue: ₹{df['total_retail_value'].sum():,.2f}
+Estimated Net Profit: ₹{df['potential_profit'].sum():,.2f}
 
 PRODUCT LIST:
 """
             for _, r in df.iterrows():
-                pdf_summary += f"- {r['name']} | Qty: {r['stock_quantity']} {r['unit']} | Cost: ${r['cost_price']} | Sell: ${r['selling_price']}\n"
+                pdf_summary += f"- {r['name']} | Qty: {r['stock_quantity']} {r['unit']} | Cost: ₹{r['cost_price']} | Sell: ${r['selling_price']}\n"
 
             st.download_button(
                 label="📄 Download Summary Report (.txt/.pdf)",
@@ -842,6 +907,337 @@ PRODUCT LIST:
         )
     else:
         st.info("No product data available for financial analysis.")
+
+
+# ---------------------------------------------------------
+# CLIENT MANAGEMENT
+# ---------------------------------------------------------
+elif menu_choice == "👥 Client Management":
+    st.title("👥 Client & Customer Management")
+    st.caption("Manage corporate partners, retail buyers, contact directories, and billing profiles.")
+
+    # Fetch clients data
+    clients_res = api_get("/client/read_client")
+    clients = clients_res.get("data", []) if isinstance(clients_res, dict) and clients_res.get("status") == "Success" else []
+
+    if not is_online:
+        st.warning("⚠️ Backend API server is offline. Showing empty/cached client directory.")
+
+    # Client KPI Metrics
+    total_clients = len(clients)
+    active_clients = len([c for c in clients if (c.get("status") or "").lower() == "active"])
+    inactive_clients = total_clients - active_clients
+    gst_clients = len([c for c in clients if c.get("gst_number") or c.get("company_name")])
+    unique_cities = len(set([c.get("city").strip().title() for c in clients if c.get("city") and c.get("city").strip()]))
+
+    # Top KPI Metrics Row
+    ckpi1, ckpi2, ckpi3, ckpi4 = st.columns(4)
+    with ckpi1:
+        st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-icon">👥</div>
+                <div class="metric-title">Total Clients</div>
+                <div class="metric-value">{total_clients}</div>
+                <div class="metric-subtitle text-indigo">{active_clients} Active Accounts</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with ckpi2:
+        st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-icon">🟢</div>
+                <div class="metric-title">Active Customers</div>
+                <div class="metric-value">{active_clients}</div>
+                <div class="metric-subtitle text-emerald">{inactive_clients} Inactive</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with ckpi3:
+        st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-icon">🏢</div>
+                <div class="metric-title">Corporate Accounts</div>
+                <div class="metric-value">{gst_clients}</div>
+                <div class="metric-subtitle text-amber">GST Registered / Business</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with ckpi4:
+        st.markdown(f"""
+            <div class="metric-box">
+                <div class="metric-icon">📍</div>
+                <div class="metric-title">Territory Reach</div>
+                <div class="metric-value">{unique_cities}</div>
+                <div class="metric-subtitle text-indigo">Cities & Regions</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Add Client Form in Expander
+    with st.expander("➕ **Register New Client / Customer**", expanded=False):
+        st.markdown("<div style='font-weight: 600; margin-bottom: 12px; color: #cbd5e1;'>Fill in Contact and Business Profile Details</div>", unsafe_allow_html=True)
+        with st.form("add_client_form", clear_on_submit=True):
+            col_c1, col_c2, col_c3 = st.columns(3)
+            with col_c1:
+                c_name = st.text_input("Full Name *", placeholder="e.g. Rahul Sharma")
+                c_phone = st.text_input("Phone Number *", placeholder="e.g. +91 9876543210")
+            with col_c2:
+                c_email = st.text_input("Email Address", placeholder="e.g. rahul@example.com")
+                c_company = st.text_input("Company / Business Name", placeholder="e.g. Sharma Enterprises")
+            with col_c3:
+                c_gst = st.text_input("GST Number", placeholder="e.g. 27ABCDE1234F1Z5")
+                c_status = st.selectbox("Customer Status", ["active", "inactive"])
+
+            col_c4, col_c5, col_c6, col_c7 = st.columns([2, 1, 1, 1])
+            with col_c4:
+                c_address = st.text_input("Street / Area Address", placeholder="e.g. Shop 12, Main Market Road")
+            with col_c5:
+                c_city = st.text_input("City", placeholder="e.g. Pune")
+            with col_c6:
+                c_state = st.text_input("State", placeholder="e.g. Maharashtra")
+            with col_c7:
+                c_pincode = st.text_input("Pincode", placeholder="e.g. 411001")
+
+            submit_client = st.form_submit_button("🚀 Register Client", type="primary", use_container_width=True)
+
+            if submit_client:
+                if not c_name.strip():
+                    st.error("Client name is required!")
+                elif not c_phone.strip():
+                    st.error("Client phone number is required!")
+                else:
+                    payload = {
+                        "name": c_name.strip(),
+                        "phone": c_phone.strip(),
+                        "email": c_email.strip() if c_email.strip() else None,
+                        "company_name": c_company.strip() if c_company.strip() else None,
+                        "gst_number": c_gst.strip() if c_gst.strip() else None,
+                        "address": c_address.strip() if c_address.strip() else None,
+                        "city": c_city.strip() if c_city.strip() else None,
+                        "state": c_state.strip() if c_state.strip() else None,
+                        "pincode": c_pincode.strip() if c_pincode.strip() else None,
+                        "status": c_status
+                    }
+                    resp, status_code = api_post("/client/create_client", payload)
+                    if status_code in [200, 201] and resp.get("status") == "Success":
+                        st.success(f"Client '{c_name}' registered successfully!")
+                        st.toast("Client registered", icon="👥")
+                        st.rerun()
+                    else:
+                        st.error(resp.get("message", "Failed to add client."))
+
+    st.markdown("<hr style='border-color: #1e293b; margin: 16px 0;'>", unsafe_allow_html=True)
+
+    # Search & Filter Controls
+    sf1, sf2, sf3, sf4 = st.columns([2, 1, 1, 1])
+    with sf1:
+        client_search_query = st.text_input("🔍 Search Clients", placeholder="Search by name, phone, email, company, or city...", label_visibility="collapsed")
+    with sf2:
+        status_filter = st.selectbox("Status Filter", ["All Status", "Active Only", "Inactive Only"], label_visibility="collapsed")
+    with sf3:
+        all_cities = sorted(list(set([c.get("city").strip().title() for c in clients if c.get("city") and c.get("city").strip()])))
+        city_filter = st.selectbox("City Filter", ["All Cities"] + all_cities, label_visibility="collapsed")
+    with sf4:
+        view_mode = st.selectbox("Display View", ["🗂️ Client Cards", "📋 Table & CSV Export"], label_visibility="collapsed")
+
+    # Filter Logic
+    filtered_clients = clients
+    if client_search_query:
+        sq = client_search_query.lower()
+        filtered_clients = [
+            c for c in filtered_clients
+            if (sq in (c.get("name") or "").lower() or
+                sq in (c.get("phone") or "").lower() or
+                sq in (c.get("email") or "").lower() or
+                sq in (c.get("company_name") or "").lower() or
+                sq in (c.get("city") or "").lower() or
+                sq in (c.get("gst_number") or "").lower())
+        ]
+
+    if status_filter == "Active Only":
+        filtered_clients = [c for c in filtered_clients if (c.get("status") or "").lower() == "active"]
+    elif status_filter == "Inactive Only":
+        filtered_clients = [c for c in filtered_clients if (c.get("status") or "").lower() != "active"]
+
+    if city_filter != "All Cities":
+        filtered_clients = [c for c in filtered_clients if (c.get("city") or "").strip().title() == city_filter]
+
+    st.markdown(f"**Showing {len(filtered_clients)} of {len(clients)} clients**")
+
+    # -------------------------------------------------------------
+    # View 1: Interactive Client Cards
+    # -------------------------------------------------------------
+    if view_mode == "🗂️ Client Cards":
+        if filtered_clients:
+            for client in filtered_clients:
+                cid = client["id"]
+                c_name_val = client.get("name", "Unnamed Client")
+                c_status_val = (client.get("status") or "active").lower()
+                c_company_val = client.get("company_name")
+                c_email_val = client.get("email")
+                c_phone_val = client.get("phone", "N/A")
+                c_gst_val = client.get("gst_number")
+                c_city_val = client.get("city")
+                c_state_val = client.get("state")
+                c_pincode_val = client.get("pincode")
+                c_address_val = client.get("address")
+
+                # Initials for avatar
+                initials = "".join([part[0].upper() for part in c_name_val.split()[:2]]) if c_name_val else "CL"
+                status_badge = '<span class="badge badge-success">ACTIVE</span>' if c_status_val == "active" else '<span class="badge badge-danger">INACTIVE</span>'
+                company_badge = f'<span class="badge badge-info">🏢 {c_company_val}</span>' if c_company_val else '<span class="badge badge-neutral">👤 Individual</span>'
+
+                location_str = ", ".join([p for p in [c_city_val, c_state_val] if p])
+                if c_pincode_val:
+                    location_str += f" - {c_pincode_val}" if location_str else c_pincode_val
+                if not location_str:
+                    location_str = "No location specified"
+
+                with st.container():
+                    st.markdown(f"""
+                        <div class="client-card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 14px;">
+                                    <div class="client-avatar">
+                                        {initials}
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                            <h4 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #ffffff;">{c_name_val}</h4>
+                                            {status_badge}
+                                            {company_badge}
+                                        </div>
+                                        <div style="font-size: 0.83rem; color: #94a3b8; margin-top: 4px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                            <span>📞 <b>{c_phone_val}</b></span>
+                                            <span>✉️ {c_email_val if c_email_val else '<span style="color:#64748b;">No Email</span>'}</span>
+                                            <span>📍 {location_str}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.78rem; color: #94a3b8;">GST / Tax ID:</div>
+                                    <code style="font-size: 0.82rem; color: #818cf8;">{c_gst_val if c_gst_val else 'Unregistered'}</code>
+                                </div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                    # Action buttons in columns
+                    btn_c1, btn_c2, btn_c3, btn_c4 = st.columns([1.5, 1, 1, 1])
+
+                    with btn_c1:
+                        st.caption(f"ID #{cid} • Joined: {client.get('created_at', '')[:10] if client.get('created_at') else 'N/A'}")
+
+                    with btn_c2:
+                        # Full profile view popover
+                        with st.popover(f"👁️ View Profile"):
+                            st.markdown(f"### 👤 {c_name_val}")
+                            st.markdown(f"**Status:** `{c_status_val.upper()}`")
+                            st.markdown(f"**Company / Business:** {c_company_val or 'N/A'}")
+                            st.markdown(f"**GST / Tax ID:** `{c_gst_val or 'N/A'}`")
+                            st.markdown("---")
+                            st.markdown(f"**Phone Number:** `{c_phone_val}`")
+                            st.markdown(f"**Email Address:** `{c_email_val or 'N/A'}`")
+                            st.markdown(f"**Full Address:** {c_address_val or 'N/A'}")
+                            st.markdown(f"**City:** {c_city_val or 'N/A'} | **State:** {c_state_val or 'N/A'} | **Pincode:** {c_pincode_val or 'N/A'}")
+                            st.markdown("---")
+                            st.caption(f"Created: {client.get('created_at', 'N/A')} | Last Updated: {client.get('updated_at', 'N/A')}")
+
+                    with btn_c3:
+                        # Edit Client Info popover calling the new update route!
+                        with st.popover(f"✏️ Edit Info"):
+                            st.markdown(f"**Edit Information for {c_name_val}**")
+                            e_name = st.text_input("Full Name *", value=c_name_val, key=f"e_name_{cid}")
+                            e_phone = st.text_input("Phone Number *", value=c_phone_val, key=f"e_phone_{cid}")
+                            e_email = st.text_input("Email Address", value=c_email_val or "", key=f"e_email_{cid}")
+                            e_company = st.text_input("Company Name", value=c_company_val or "", key=f"e_comp_{cid}")
+                            e_gst = st.text_input("GST Number", value=c_gst_val or "", key=f"e_gst_{cid}")
+                            
+                            e_addr = st.text_input("Street Address", value=c_address_val or "", key=f"e_addr_{cid}")
+                            ec1, ec2, ec3 = st.columns(3)
+                            with ec1:
+                                e_city = st.text_input("City", value=c_city_val or "", key=f"e_city_{cid}")
+                            with ec2:
+                                e_state = st.text_input("State", value=c_state_val or "", key=f"e_state_{cid}")
+                            with ec3:
+                                e_pin = st.text_input("Pincode", value=c_pincode_val or "", key=f"e_pin_{cid}")
+                                
+                            status_idx = 0 if c_status_val == "active" else 1
+                            e_status = st.selectbox("Status", ["active", "inactive"], index=status_idx, key=f"e_stat_{cid}")
+
+                            if st.button("💾 Update Client", key=f"save_client_{cid}", type="primary", use_container_width=True):
+                                if not e_name.strip():
+                                    st.error("Name cannot be empty!")
+                                elif not e_phone.strip():
+                                    st.error("Phone cannot be empty!")
+                                else:
+                                    update_payload = {
+                                        "name": e_name.strip(),
+                                        "phone": e_phone.strip(),
+                                        "email": e_email.strip() if e_email.strip() else None,
+                                        "company_name": e_company.strip() if e_company.strip() else None,
+                                        "gst_number": e_gst.strip() if e_gst.strip() else None,
+                                        "address": e_addr.strip() if e_addr.strip() else None,
+                                        "city": e_city.strip() if e_city.strip() else None,
+                                        "state": e_state.strip() if e_state.strip() else None,
+                                        "pincode": e_pin.strip() if e_pin.strip() else None,
+                                        "status": e_status
+                                    }
+                                    up_resp, up_code = api_put(f"/client/update_client/{cid}", update_payload)
+                                    if up_code == 200 and up_resp.get("status") == "Success":
+                                        st.success("Client updated successfully!")
+                                        st.toast(f"Updated {e_name}", icon="✅")
+                                        st.rerun()
+                                    else:
+                                        st.error(up_resp.get("message", "Error updating client"))
+
+                    with btn_c4:
+                        # Delete confirmation popover
+                        with st.popover("🗑️ Delete"):
+                            st.markdown(f"**Delete {c_name_val}?**")
+                            st.caption("This action cannot be undone.")
+                            if st.button("Confirm Delete", key=f"del_client_{cid}", type="primary"):
+                                del_resp, del_code = api_delete(f"/client/delete_client/{cid}")
+                                if del_code == 200 and del_resp.get("status") == "Success":
+                                    st.toast(f"Deleted client {c_name_val}", icon="🗑️")
+                                    st.rerun()
+                                else:
+                                    st.error(del_resp.get("message", "Error deleting client"))
+
+                    st.markdown("<hr style='border-color: #1e293b; margin: 12px 0 18px 0;'>", unsafe_allow_html=True)
+        else:
+            st.info("No matching clients found in the directory.")
+
+    # -------------------------------------------------------------
+    # View 2: Tabular Directory & CSV Export
+    # -------------------------------------------------------------
+    elif view_mode == "📋 Table & CSV Export":
+        if filtered_clients:
+            df_clients = pd.DataFrame(filtered_clients)
+            
+            # Format columns
+            cols_to_show = ["id", "name", "phone", "email", "company_name", "gst_number", "city", "state", "pincode", "status", "created_at"]
+            available_cols = [c for c in cols_to_show if c in df_clients.columns]
+            
+            st.dataframe(
+                df_clients[available_cols],
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # Export Button
+            csv_buf = io.StringIO()
+            df_clients.to_csv(csv_buf, index=False)
+            st.download_button(
+                label="📥 Download Clients Directory (CSV)",
+                data=csv_buf.getvalue(),
+                file_name=f"clients_directory_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        else:
+            st.info("No clients available to display in table.")
 
 
 # ---------------------------------------------------------
@@ -867,4 +1263,8 @@ elif menu_choice == "⚙️ System Settings":
     st.code(f"Auth Endpoints: {BASE_URL}/auth/login | {BASE_URL}/auth/register", language="text")
     st.code(f"Product Endpoints: {BASE_URL}/products", language="text")
     st.code(f"Category Endpoints: {BASE_URL}/categories", language="text")
+    st.code(f"Client Endpoints: {BASE_URL}/client/create_client | {BASE_URL}/client/read_client | {BASE_URL}/client/update_client/<id> | {BASE_URL}/client/delete_client/<id> | {BASE_URL}/client/search_client", language="text")
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+

@@ -44,3 +44,42 @@ class Product(db.Model):
         default=datetime.utcnow, 
         onupdate=datetime.utcnow
     )
+    # Client / Customer table
+class Client(db.Model):
+    __tablename__ = "clients"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # Basic Information
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(200), nullable=True, unique=True)
+    phone = db.Column(db.String(20), nullable=False)
+
+    # Address Information
+    address = db.Column(db.String(300), nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+
+    # Business Information (optional)
+    company_name = db.Column(db.String(200), nullable=True)
+    gst_number = db.Column(db.String(20), nullable=True, unique=True)
+
+    # Customer Status
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="active"
+    )
+
+    # Record Information
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
